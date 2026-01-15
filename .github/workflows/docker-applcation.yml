@@ -5,4 +5,10 @@ on:
   push:
     branches:
       - "main"
-      
+
+#jobs
+
+jobs:
+  build-run-docker-image:
+    runs-on: ubuntu-latest
+    
