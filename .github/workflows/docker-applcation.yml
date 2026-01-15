@@ -11,4 +11,6 @@ on:
 jobs:
   build-run-docker-image:
     runs-on: ubuntu-latest
-    
+    steps:
+      - name: checkout repository content
+        uses: action/checkout@v3
