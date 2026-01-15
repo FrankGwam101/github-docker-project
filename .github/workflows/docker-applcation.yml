@@ -14,3 +14,55 @@ jobs:
     steps:
       - name: checkout repository content
         uses: actions/checkout@v3
+        
+    - name: Check that it runs fine. 
+      run: ls 
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_USERNAME  }}
+        password: ${{ secrets.DOCKER_PASSWORD  }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v2
+      with: 
+        context: .   # context is in the current directory
+        push: true
+        tags: ${{ secrets.DOCKER_USERNAME  }}/toyshop-dockerized:gha    #  username/image name:tag
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-2
+
+    - name: Create Security Group  # using aws command line - https://docs.aws.amazon.com/cli/latest/reference/ec2/create-security-group.html
+      id: sg # this whole step has been given an id which  other steps can reference
+      run: | 
+        SG_ID=$(aws ec2 create-security-group --group-name MyGHASecGrp5 --description "SecurityGroup for github action"  --vpc-id vpc-b9b523d0            --query 'GroupId' --output text)
+        aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 80 --cidr 0.0.0.0/0
+        aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr 0.0.0.0/0
+        echo "::set-output name=sg_id::$SG_ID"
+
+
+    - name: Launch EC2 Instance # using aws command line -  https://docs.aws.amazon.com/cli/v1/userguide/cli-services-ec2-instances.html
+      id: ec2
+      run: |
+        INSTANCE_ID=$(aws ec2 run-instances --image-id ami-046d5130831576bbb --count 1 --instance-type t2.medium --key-name ${{ secrets           .AWS_KEYPAIR_NAME }} --security-group-ids ${{ steps.sg.outputs.sg_id }} --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=GitHubActionEC2-DockerBuild}]' --subnet-id ${{ secrets.AWS_SUBNET_ID }} --user-data file://user-data.txt --query 'Instances[0].InstanceId' --output text) 
+        echo "::set-output name=instance_id::$INSTANCE_ID"  
+
+    - name: wait for ec2 instance to be running
+      run: |
+        aws ec2 wait instance-running --instance-ids ${{ steps.ec2.outputs.instance_id  }}  
+
+    - name: Get EC2 Public IP
+      id: ip
+      run: |
+        PUBLIC_IP=$(aws ec2 describe-instances --instance-ids ${{ steps.ec2.outputs.instance_id }} --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+        echo "::set-output name=public_ip::$PUBLIC_IP"
+
+    - name: Print Public IP
+      run: echo "Public IP address is
+      
