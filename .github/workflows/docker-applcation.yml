@@ -1,2 +1,8 @@
 #name of the workflow
 name: docker application
+
+on:
+  push:
+    branches:
+      - "main"
+      
