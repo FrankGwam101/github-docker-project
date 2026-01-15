@@ -1,20 +1,24 @@
 #name of the workflow
 name: docker application
 
+#when does it run
 on:
   push:
-    branches:
-      - "main"
+    branches: [ "main", "my-other-branch" ] #run only when there is a push on the main branch
+  pull_request:
+    branches: [ "main" ]  #only when there is a pull  request for the main branch
 
-#jobs
 
+#what jobs will it be running when it triggers
 jobs:
+  #which manchine is it going to run it on
   build-run-docker-image:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # runner for the job
+
     steps:
-      - name: checkout repository content
-        uses: actions/checkout@v3
-        
+    - name: Checkout repository
+      uses: actions/checkout@v2     # downloads the code onto the runner  
+
     - name: Check that it runs fine. 
       run: ls 
 
@@ -65,4 +69,3 @@ jobs:
 
     - name: Print Public IP
       run: echo "Public IP address is
-      
